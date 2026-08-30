@@ -364,7 +364,17 @@ const platformExtra = {
 		const existing = await strapi.db
 			.query('api::lesson-completion.lesson-completion')
 			.findOne({ where: { user: user.id, lesson: lesson.id } });
-		if (existing) return ctx.body = { data: existing };
+		if (existing) {
+			ctx.body = {
+				data: {
+					id: existing.id,
+					userId: user.id,
+					lessonId: lesson.id,
+					completedAt: existing.completedAt,
+				},
+			};
+			return;
+		}
 		const created = await strapi.db
 			.query('api::lesson-completion.lesson-completion')
 			.create({
@@ -374,7 +384,14 @@ const platformExtra = {
 					completedAt: new Date().toISOString(),
 				},
 			});
-		ctx.body = { data: created };
+		ctx.body = {
+			data: {
+				id: created.id,
+				userId: user.id,
+				lessonId: lesson.id,
+				completedAt: created.completedAt,
+			},
+		};
 	},
 
 	/* ============ progress & student flows ============ */
@@ -388,9 +405,17 @@ const platformExtra = {
 			.query('api::lesson-completion.lesson-completion')
 			.findMany({
 				where: { user: user.id },
+				populate: ['lesson'],
 				orderBy: { completedAt: 'asc' },
 			});
-		ctx.body = { data: rows };
+		ctx.body = {
+			data: rows.map((r) => ({
+				id: r.id,
+				userId: user.id,
+				lessonId: (r.lesson as { id?: number } | null)?.id ?? null,
+				completedAt: r.completedAt,
+			})),
+		};
 	},
 
 
