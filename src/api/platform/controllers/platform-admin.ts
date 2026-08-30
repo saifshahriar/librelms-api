@@ -165,6 +165,42 @@ const platformAdmin = {
 		};
 	},
 
+
+	/** GET /api/users/me: current user with role slug (contract shape) */
+	async usersMe(ctx: Context) {
+		const strapi = getStrapi();
+		const user = await getUserFromToken(ctx, strapi);
+		if (!user) return deny(ctx, 401, 'Unauthorized');
+		const row = await strapi.db
+			.query('plugin::users-permissions.user')
+			.findOne({ where: { id: user.id }, populate: ['role'] });
+		if (!row) return ctx.throw(404, 'User not found');
+		ctx.body = { data: toUserDTO(row) };
+	},
+
+
+	/** PUT /api/users/me: update own profile (fullName) */
+	async usersMeUpdate(ctx: Context) {
+		const strapi = getStrapi();
+		const user = await getUserFromToken(ctx, strapi);
+		if (!user) return deny(ctx, 401, 'Unauthorized');
+		const body = (ctx.request as { body: unknown }).body as {
+			fullName?: string;
+		};
+		const row = await strapi.db
+			.query('plugin::users-permissions.user')
+			.findOne({ where: { id: user.id } });
+		if (!row) return ctx.throw(404, 'User not found');
+		await strapi.documents('plugin::users-permissions.user').update({
+			documentId: row.documentId,
+			data: { fullName: body.fullName?.trim() } as never,
+		});
+		const updated = await strapi.db
+			.query('plugin::users-permissions.user')
+			.findOne({ where: { id: user.id }, populate: ['role'] });
+		ctx.body = { data: toUserDTO(updated) };
+	},
+
 	async usersList(ctx: Context) {
 		const strapi = getStrapi();
 		const rows = await strapi.db

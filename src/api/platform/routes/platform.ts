@@ -190,6 +190,18 @@ export default {
 			config: { auth: false, policies: ['global::is-admin'] },
 		},
 		{
+			method: 'GET',
+			path: '/users/me',
+			handler: 'api::platform.platform-admin.usersMe',
+			config: { auth: false, policies: ['global::is-authenticated-app'] },
+		},
+		{
+			method: 'PUT',
+			path: '/users/me',
+			handler: 'api::platform.platform-admin.usersMeUpdate',
+			config: { auth: false, policies: ['global::is-authenticated-app'] },
+		},
+		{
 			method: 'PUT',
 			path: '/users/:id/role',
 			handler: 'api::platform.platform-admin.setUserRole',
