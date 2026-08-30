@@ -1,9 +1,11 @@
 import type { Core } from '@strapi/types';
 
 /**
- * Idempotent bootstrap: ensures the 4 platform roles exist. Default REST
- * stays locked (roles get no permissions). Registration defaults to
- * Student via the users-permissions create lifecycle.
+ * Idempotent bootstrap:
+ * - ensures the 4 platform roles exist
+ * - sets users-permissions "advanced" defaults (register -> Student)
+ * - seeds demo content when SEED_DEMO=true
+ * (register override lives in extensions/users-permissions/strapi-server.ts)
  */
 export default {
 	register(/* { strapi }: { strapi: Core.Strapi } */) {},
@@ -32,11 +34,21 @@ export default {
 			},
 		];
 
-		// Users-permissions "advanced" settings: default role on register.
-		// We run this deferred so the plugin's own bootstrap (which also
-		// writes this key) has finished first.
+		// Deferred so the plugin's own bootstrap has finished first.
 		setTimeout(async () => {
 			try {
+				for (const role of ROLES) {
+					const exists = await strapi.db
+						.query('plugin::users-permissions.role')
+						.findOne({ where: { type: role.type } });
+					if (!exists) {
+						await strapi.db
+							.query('plugin::users-permissions.role')
+							.create({ data: role });
+						strapi.log.info(`[bootstrap] created role ${role.type}`);
+					}
+				}
+
 				const student = await strapi.db
 					.query('plugin::users-permissions.role')
 					.findOne({ where: { type: 'student' } });
@@ -46,7 +58,7 @@ export default {
 						.set({
 							key: 'advanced',
 							value: {
-								default_role: String(student.id),
+								default_role: 'student',
 								allow_register: true,
 							},
 						});
@@ -54,12 +66,13 @@ export default {
 						`[bootstrap] default registration role: student (id ${student.id})`,
 					);
 				}
+
 				if (process.env.SEED_DEMO === 'true') {
 					const { seedDemo } = await import('./extensions/platform/seed');
 					await seedDemo(strapi);
 				}
 			} catch (e) {
-				strapi.log.warn(`[bootstrap] seed/default role failed: ${e}`);
+				strapi.log.warn(`[bootstrap] init failed: ${e}`);
 			}
 		}, 3000);
 	},
