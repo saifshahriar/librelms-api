@@ -65,13 +65,13 @@ export default {
 			method: 'PUT',
 			path: '/lessons/:ref',
 			handler: 'api::platform.platform.lessonUpdate',
-			config: { auth: false, policies: ['global::is-course-owner'] },
+			config: { auth: false, policies: ['global::lesson-access'] },
 		},
 		{
 			method: 'DELETE',
 			path: '/lessons/:ref',
 			handler: 'api::platform.platform.lessonDelete',
-			config: { auth: false, policies: ['global::is-course-owner'] },
+			config: { auth: false, policies: ['global::lesson-access'] },
 		},
 
 		/* ---------- quizzes ---------- */
@@ -103,13 +103,13 @@ export default {
 			method: 'PUT',
 			path: '/quizzes/:ref',
 			handler: 'api::platform.platform-extra.quizUpdate',
-			config: { auth: false, policies: ['global::is-course-owner'] },
+			config: { auth: false, policies: ['global::quiz-access'] },
 		},
 		{
 			method: 'DELETE',
 			path: '/quizzes/:ref',
 			handler: 'api::platform.platform-extra.quizDelete',
-			config: { auth: false, policies: ['global::is-course-owner'] },
+			config: { auth: false, policies: ['global::quiz-access'] },
 		},
 		{
 			method: 'POST',
@@ -189,7 +189,7 @@ export default {
 			handler: 'api::platform.platform-extra.upload',
 			config: {
 				auth: false,
-				policies: ['global::is-staff'],
+				policies: ['global::is-content-creator'],
 				middlewares: ['plugin::users-permissions.rateLimit'],
 			},
 		},

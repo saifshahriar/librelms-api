@@ -533,13 +533,30 @@ const platformExtra = {
 			});
 		const out = [];
 		for (const r of results) {
-			const quiz = await findQuizFull(strapi, String(r.quiz.id));
+			const quizRef = (r.quiz as { id?: number } | null)?.id;
+			if (!quizRef) {
+				// quiz was cascade-deleted; keep the historical score
+				out.push({
+					id: r.id,
+					quizId: 0,
+					quizTitle: 'Deleted quiz',
+					courseId: 0,
+					courseTitle: '',
+					score: r.score,
+					total: r.total,
+					submittedAt: r.submittedAt,
+					answers: r.answers,
+					correctAnswers: r.correctAnswers,
+				});
+				continue;
+			}
+			const quiz = await findQuizFull(strapi, String(quizRef));
 			const course = quiz?.course
 				? await findCourseByRef(strapi, String(quiz.course.id))
 				: null;
 			out.push({
 				id: r.id,
-				quizId: r.quiz.id,
+				quizId: quizRef,
 				quizTitle: quiz?.title ?? 'Deleted quiz',
 				courseId: quiz?.course?.id ?? 0,
 				courseTitle: course?.title ?? '',

@@ -127,6 +127,12 @@ const platform = {
 				where: { lesson: { id: { $in: lessonIds } } },
 			});
 		}
+		const quizIds = (existing.quizzes ?? []).map((q: { id: number }) => q.id);
+		if (quizIds.length > 0) {
+			await strapi.db.query('api::quiz-result.quiz-result').deleteMany({
+				where: { quiz: { id: { $in: quizIds } } },
+			});
+		}
 		await strapi.db.query('api::course.course').delete({
 			where: { id: existing.id },
 		});
