@@ -27,6 +27,8 @@
   ],
 
   "exclude": [
+    // Standalone test scripts are run directly with bun, not compiled
+    "scripts/",
     "node_modules/",
     "build/",
     "dist/",
