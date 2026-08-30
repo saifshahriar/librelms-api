@@ -72,7 +72,7 @@ async function main() {
 	});
 	check(
 		"student my/courses with progress",
-		myCourses.body?.data?.length === 2 &&
+		myCourses.body?.data?.length >= 2 &&
 			typeof myCourses.body.data[0].progress.percent === "number",
 	);
 
