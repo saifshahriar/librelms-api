@@ -1,0 +1,30 @@
+{
+	"kind": "collectionType",
+	"collectionName": "lesson_completions",
+	"info": {
+		"singularName": "lesson-completion",
+		"pluralName": "lesson-completions",
+		"displayName": "Lesson Completion"
+	},
+	"options": {
+		"draftAndPublish": false
+	},
+	"pluginOptions": {},
+	"attributes": {
+		"user": {
+			"type": "relation",
+			"relation": "oneToOne",
+			"target": "plugin::users-permissions.user",
+			"required": true
+		},
+		"lesson": {
+			"type": "relation",
+			"relation": "oneToOne",
+			"target": "api::lesson.lesson",
+			"required": true
+		},
+		"completedAt": {
+			"type": "datetime"
+		}
+	}
+}

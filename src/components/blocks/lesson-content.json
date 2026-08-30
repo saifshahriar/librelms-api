@@ -1,0 +1,23 @@
+{
+	"collectionName": "components_blocks_lesson_contents",
+	"info": {
+		"displayName": "Lesson Content",
+		"icon": "alignLeft",
+		"description": "Text or video payload of a lesson"
+	},
+	"options": {},
+	"attributes": {
+		"kind": {
+			"type": "enumeration",
+			"enum": ["text", "video"],
+			"default": "text",
+			"required": true
+		},
+		"body": {
+			"type": "richtext"
+		},
+		"videoUrl": {
+			"type": "string"
+		}
+	}
+}

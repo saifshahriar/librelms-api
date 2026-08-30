@@ -1,0 +1,21 @@
+{
+	"collectionName": "components_blocks_quiz_questions",
+	"info": {
+		"displayName": "Quiz Question",
+		"icon": "question",
+		"description": "MCQ question with options"
+	},
+	"options": {},
+	"attributes": {
+		"text": {
+			"type": "text",
+			"required": true
+		},
+		"options": {
+			"type": "component",
+			"repeatable": true,
+			"component": "blocks.quiz-option",
+			"min": 2
+		}
+	}
+}
