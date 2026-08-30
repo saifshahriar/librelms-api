@@ -19,13 +19,18 @@
 		"body": {
 			"type": "richtext"
 		},
-		"coverImageUrl": {
-			"type": "string"
-		},
 		"author": {
 			"type": "relation",
 			"relation": "manyToOne",
 			"target": "plugin::users-permissions.user"
+		},
+		"coverImage": {
+			"type": "media",
+			"multiple": false,
+			"required": false,
+			"allowedTypes": [
+				"images"
+			]
 		}
 	}
 }

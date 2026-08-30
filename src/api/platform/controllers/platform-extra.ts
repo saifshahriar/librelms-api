@@ -13,10 +13,7 @@ import {
 	toPostDTO,
 	toUserDTO,
 } from '../../../extensions/platform/service';
-import {
-	deny,
-	getUserFromToken,
-} from '../../../extensions/platform/http';
+import { getUserFromToken } from '../../../extensions/platform/http';
 
 /**
  * Quizzes, posts and student-flow controllers (contract-mirror).
@@ -33,7 +30,7 @@ const platformExtra = {
 	async quizzesList(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const courseId = ctx.query.courseId as string | undefined;
 
 		// role gate (mirrors mock): quizzes only for enrolled students,
@@ -236,7 +233,7 @@ const platformExtra = {
 	async quizSubmit(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const quiz = await findQuizFull(strapi, ctx.params.ref);
 		if (!quiz?.course?.id) return ctx.throw(404, 'Quiz not found');
 		if (!(await isEnrolled(strapi, user.id, quiz.course.id)))
@@ -287,12 +284,57 @@ const platformExtra = {
 		};
 	},
 
+	/**
+	 * POST /api/platform/upload (multipart). Staff only. Saves the file
+	 * through Strapi's upload service (local provider -> public/uploads)
+	 * and returns its URL. Used for course covers, lesson videos and
+	 * blog covers: direct uploads, not links.
+	 */
+	async upload(ctx: Context) {
+		const strapi = getStrapi();
+		const raw = (ctx.request.files as Record<string, unknown>) ?? {};
+		const input = raw.files as
+			| {
+					filepath: string;
+					newFilename: string;
+					originalFilename: string;
+					mimetype: string;
+					size: number;
+				}
+			| {
+					filepath: string;
+					newFilename: string;
+					originalFilename: string;
+					mimetype: string;
+					size: number;
+				}[]
+			| undefined;
+		if (!input) return ctx.throw(400, 'File is required');
+		const list = Array.isArray(input) ? input : [input];
+		if (list.length === 0) return ctx.throw(400, 'File is required');
+
+		const uploaded = await strapi
+			.plugin('upload')
+			.service('upload')
+			.upload({ data: {}, files: list as never });
+		// plugin returns absolute-path urls like /uploads/foo.png; the
+		// frontend prefixes NEXT_PUBLIC_API_URL
+		const saved = uploaded as { id: number; url: string; name: string }[];
+		ctx.body = {
+			data: {
+				urls: saved.map((f) => f.url),
+				ids: saved.map((f) => f.id),
+				names: saved.map((f) => f.name),
+			},
+		};
+	},
+
 	/* ============ enrollments & completions ============ */
 
 	async enroll(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const { courseId } = ctx.request.body as { courseId: number | string };
 		const course = await findCourseByRef(strapi, String(courseId));
 		if (!course) return ctx.throw(404, 'Course not found');
@@ -313,7 +355,7 @@ const platformExtra = {
 	async completeLesson(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const { lessonId } = ctx.request.body as { lessonId: number | string };
 		const lesson = await findLessonByRef(strapi, String(lessonId));
 		if (!lesson?.course?.id) return ctx.throw(404, 'Lesson not found');
@@ -337,10 +379,25 @@ const platformExtra = {
 
 	/* ============ progress & student flows ============ */
 
+	/** GET /api/lesson-completions: the caller's own completion rows */
+	async completionsList(ctx: Context) {
+		const strapi = getStrapi();
+		const user = await getUserFromToken(ctx, strapi);
+		if (!user) return ctx.throw(401, 'Unauthorized');
+		const rows = await strapi.db
+			.query('api::lesson-completion.lesson-completion')
+			.findMany({
+				where: { user: user.id },
+				orderBy: { completedAt: 'asc' },
+			});
+		ctx.body = { data: rows };
+	},
+
+
 	async courseProgress(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const course = await findCourseByRef(strapi, ctx.params.ref);
 		if (!course) return ctx.throw(404, 'Course not found');
 
@@ -407,7 +464,7 @@ const platformExtra = {
 	async myCourses(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const enrollments = await strapi.db
 			.query('api::enrollment.enrollment')
 			.findMany({ where: { user: user.id }, populate: ['course'] });
@@ -442,7 +499,7 @@ const platformExtra = {
 	async myQuizResults(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const results = await strapi.db
 			.query('api::quiz-result.quiz-result')
 			.findMany({

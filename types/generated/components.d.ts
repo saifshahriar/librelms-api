@@ -12,6 +12,7 @@ export interface BlocksLessonContent extends Struct.ComponentSchema {
     kind: Schema.Attribute.Enumeration<['text', 'video']> &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'text'>;
+    videoFile: Schema.Attribute.Media<'videos'>;
     videoUrl: Schema.Attribute.String;
   };
 }

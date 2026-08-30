@@ -9,7 +9,10 @@
 	"attributes": {
 		"kind": {
 			"type": "enumeration",
-			"enum": ["text", "video"],
+			"enum": [
+				"text",
+				"video"
+			],
 			"default": "text",
 			"required": true
 		},
@@ -18,6 +21,14 @@
 		},
 		"videoUrl": {
 			"type": "string"
+		},
+		"videoFile": {
+			"type": "media",
+			"multiple": false,
+			"required": false,
+			"allowedTypes": [
+				"videos"
+			]
 		}
 	}
 }

@@ -126,6 +126,12 @@ export default {
 			config: { auth: false, policies: ['global::is-student'] },
 		},
 		{
+			method: 'GET',
+			path: '/lesson-completions',
+			handler: 'api::platform.platform-extra.completionsList',
+			config: { auth: false, policies: ['global::is-authenticated-app'] },
+		},
+		{
 			method: 'POST',
 			path: '/lesson-completions',
 			handler: 'api::platform.platform-extra.completeLesson',
@@ -174,6 +180,18 @@ export default {
 			path: '/posts/:ref',
 			handler: 'api::platform.platform-admin.postDelete',
 			config: { auth: false, policies: ['global::is-staff'] },
+		},
+
+		/* ---------- uploads ---------- */
+		{
+			method: 'POST',
+			path: '/platform/upload',
+			handler: 'api::platform.platform-extra.upload',
+			config: {
+				auth: false,
+				policies: ['global::is-staff'],
+				middlewares: ['plugin::users-permissions.rateLimit'],
+			},
 		},
 
 		/* ---------- admin ---------- */

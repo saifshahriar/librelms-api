@@ -2,6 +2,7 @@ import type { Context } from 'koa';
 import type { Core } from '@strapi/types';
 import {
 	findCourseByRef,
+	findLessonFull,
 	findLessonByRef,
 	findPostByRef,
 	findQuizByRef,
@@ -16,10 +17,7 @@ import {
 	toPostDTO,
 	toUserDTO,
 } from '../../../extensions/platform/service';
-import {
-	deny,
-	getUserFromToken,
-} from '../../../extensions/platform/http';
+import { getUserFromToken } from '../../../extensions/platform/http';
 
 /**
  * Contract-mirror controllers for the LibreLMS frontend. Every handler
@@ -53,7 +51,7 @@ const platform = {
 	async courseCreate(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const role = await roleOf(strapi, user.id);
 		if (role !== 'admin' && role !== 'content_manager' && role !== 'instructor')
 			return ctx.throw(403, 'Forbidden');
@@ -61,6 +59,7 @@ const platform = {
 			title?: string;
 			description?: string;
 			coverImageUrl?: string;
+			coverImageId?: number | string | null;
 		};
 		if (!body?.title?.trim()) return ctx.throw(400, 'Title is required');
 		const created = await strapi.documents('api::course.course').create({
@@ -68,9 +67,10 @@ const platform = {
 				title: body.title.trim(),
 				description: body.description ?? '',
 				coverImageUrl: body.coverImageUrl ?? '',
+				coverImage: body.coverImageId ?? null,
 				// instructor auto-assigns themselves on creation
 				instructors: role === 'instructor' ? [user.id] : [],
-			},
+			} as never,
 		});
 		const full = await findCourseByRef(strapi, created.documentId);
 		ctx.body = { data: toCourseDTO(full) };
@@ -83,6 +83,7 @@ const platform = {
 			title?: string;
 			description?: string;
 			coverImageUrl?: string;
+			coverImageId?: number | string | null;
 		};
 		const existing = await findCourseByRef(strapi, ctx.params.ref);
 		if (!existing) return ctx.throw(404, 'Course not found');
@@ -96,7 +97,10 @@ const platform = {
 				...(body.coverImageUrl !== undefined
 					? { coverImageUrl: body.coverImageUrl }
 					: {}),
-			},
+				...(body.coverImageId !== undefined
+					? { coverImage: body.coverImageId }
+					: {}),
+			} as never,
 		});
 		void course;
 		const full = await findCourseByRef(strapi, existing.documentId);
@@ -142,7 +146,7 @@ const platform = {
 		// - staff: all courses
 		if (courseId) {
 			const user = await getUserFromToken(ctx, strapi);
-			if (!user) return deny(ctx, 401, 'Unauthorized');
+			if (!user) return ctx.throw(401, 'Unauthorized');
 			const course = await findCourseByRef(strapi, courseId, [
 				'instructors',
 			]);
@@ -159,25 +163,26 @@ const platform = {
 			}
 		}
 
-		const rows = await strapi.db
-			.query('api::lesson.lesson')
-			.findMany({
-				where: courseId
-					? {
-							course: Number.isNaN(Number(courseId))
-								? { documentId: courseId }
-								: { id: Number(courseId) },
-						}
-					: {},
-				populate: ['course'],
-				orderBy: [{ order: 'asc' }, { id: 'asc' }],
-			});
-		ctx.body = { data: rows.map(toLessonDTO) };
+		const docs = (await strapi.documents('api::lesson.lesson').findMany({
+			filters: (courseId
+				? {
+						course: Number.isNaN(Number(courseId))
+							? { documentId: courseId }
+							: { id: Number(courseId) },
+					}
+				: {}) as never,
+			populate: {
+				content: { populate: { videoFile: true } },
+				course: true,
+			} as never,
+			sort: [{ order: 'asc' }] as never,
+		})) as unknown as Parameters<typeof toLessonDTO>[0][];
+		ctx.body = { data: docs.map(toLessonDTO) };
 	},
 
 	async lessonFind(ctx: Context) {
 		const strapi = getStrapi();
-		const lesson = await findLessonByRef(strapi, ctx.params.ref);
+		const lesson = await findLessonFull(strapi, ctx.params.ref);
 		if (!lesson) return ctx.throw(404, 'Lesson not found');
 		ctx.body = { data: toLessonDTO(lesson) };
 	},
@@ -190,6 +195,7 @@ const platform = {
 			kind?: 'text' | 'video';
 			body?: string;
 			videoUrl?: string;
+			videoFileId?: number | string | null;
 		};
 		if (!body?.title?.trim()) return ctx.throw(400, 'Title is required');
 		const existingCount = await strapi.db
@@ -204,34 +210,37 @@ const platform = {
 					kind: body.kind === 'video' ? 'video' : 'text',
 					body: body.kind === 'video' ? '' : (body.body ?? ''),
 					videoUrl: body.kind === 'video' ? body.videoUrl : '',
-				},
+					videoFile: body.kind === 'video' ? (body.videoFileId ?? null) : null,
+				} as never,
 			},
 		});
-		const full = await findLessonByRef(strapi, created.documentId);
+		const full = await findLessonFull(strapi, created.documentId);
+		if (!full) return ctx.throw(404, 'Lesson not found');
 		ctx.body = { data: toLessonDTO(full) };
 	},
 
 	async lessonUpdate(ctx: Context) {
 		const strapi = getStrapi();
-		const existing = await findLessonByRef(strapi, ctx.params.ref);
+		const existing = await findLessonFull(strapi, ctx.params.ref);
 		if (!existing) return ctx.throw(404, 'Lesson not found');
 		const body = ctx.request.body as {
 			title?: string;
 			kind?: 'text' | 'video';
 			body?: string;
 			videoUrl?: string;
+			videoFileId?: number | string | null;
 		};
+		const kind = body.kind ?? existing.content?.kind ?? 'text';
 		const content = {
-			kind: body.kind ?? existing.content?.kind ?? 'text',
+			kind,
 			body:
-				(body.kind ?? existing.content?.kind) === 'video'
-					? null
-					: (body.body ?? existing.content?.body ?? ''),
-			videoUrl:
-				(body.kind ?? existing.content?.kind) === 'video'
-					? (body.videoUrl ?? existing.content?.videoUrl ?? '')
+				kind === 'video' ? '' : (body.body ?? existing.content?.body ?? ''),
+			videoUrl: kind === 'video' ? (body.videoUrl ?? '') : '',
+			videoFile:
+				kind === 'video'
+					? (body.videoFileId ?? existing.content?.videoFile ?? null)
 					: null,
-		};
+		} as never;
 		await strapi.documents('api::lesson.lesson').update({
 			documentId: existing.documentId,
 			data: {
@@ -239,7 +248,8 @@ const platform = {
 				content,
 			},
 		});
-		const full = await findLessonByRef(strapi, existing.documentId);
+		const full = await findLessonFull(strapi, existing.documentId);
+		if (!full) return ctx.throw(404, 'Lesson not found');
 		ctx.body = { data: toLessonDTO(full) };
 	},
 

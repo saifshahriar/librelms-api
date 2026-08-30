@@ -7,10 +7,7 @@ import {
 	toUserDTO,
 	ROLE_SLUGS,
 } from '../../../extensions/platform/service';
-import {
-	deny,
-	getUserFromToken,
-} from '../../../extensions/platform/http';
+import { getUserFromToken } from '../../../extensions/platform/http';
 
 /**
  * Posts, admin stats and user management controllers (contract-mirror).
@@ -33,7 +30,7 @@ const platformAdmin = {
 			viewerRole === 'admin' || viewerRole === 'content_manager';
 
 		const rows = await strapi.db.query('api::post.post').findMany({
-			populate: ['author'],
+			populate: ['author', 'coverImage'],
 			orderBy: { createdAt: 'desc' },
 			// staff with ?publicationState=preview see drafts too; public
 			// sees only published posts
@@ -62,7 +59,7 @@ const platformAdmin = {
 	async postCreate(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const body = ctx.request.body as {
 			title?: string;
 			body?: string;
@@ -86,7 +83,7 @@ const platformAdmin = {
 	async postUpdate(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const existing = await findPostByRef(strapi, ctx.params.ref);
 		if (!existing) return ctx.throw(404, 'Post not found');
 		// admin: any post; content manager: own posts only
@@ -120,7 +117,7 @@ const platformAdmin = {
 	async postDelete(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const existing = await findPostByRef(strapi, ctx.params.ref);
 		if (!existing) return ctx.throw(404, 'Post not found');
 		const role = await roleOf(strapi, user.id);
@@ -170,7 +167,7 @@ const platformAdmin = {
 	async usersMe(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const row = await strapi.db
 			.query('plugin::users-permissions.user')
 			.findOne({ where: { id: user.id }, populate: ['role'] });
@@ -183,7 +180,7 @@ const platformAdmin = {
 	async usersMeUpdate(ctx: Context) {
 		const strapi = getStrapi();
 		const user = await getUserFromToken(ctx, strapi);
-		if (!user) return deny(ctx, 401, 'Unauthorized');
+		if (!user) return ctx.throw(401, 'Unauthorized');
 		const body = (ctx.request as { body: unknown }).body as {
 			fullName?: string;
 		};

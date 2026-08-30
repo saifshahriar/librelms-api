@@ -1,7 +1,8 @@
+import { errors } from '@strapi/utils';
 import type { Context } from 'koa';
 import type { Core } from '@strapi/types';
 import { roleOf } from '../extensions/platform/service';
-import { deny, getUserFromToken } from '../extensions/platform/http';
+import { getUserFromToken } from '../extensions/platform/http';
 
 /** Students only (enroll, take quizzes, track own progress). */
 export default async function (
@@ -10,8 +11,8 @@ export default async function (
 	{ strapi }: { strapi: Core.Strapi },
 ) {
 	const user = await getUserFromToken(ctx, strapi);
-	if (!user) return deny(ctx, 401, 'Unauthorized');
+	if (!user) throw new errors.UnauthorizedError('Unauthorized');
 	const role = await roleOf(strapi, user.id);
-	if (role !== 'student') return deny(ctx, 403, 'Forbidden');
+	if (role !== 'student') throw new errors.ForbiddenError('Forbidden');
 	return true;
-};
+}

@@ -1,6 +1,7 @@
+import { errors } from '@strapi/utils';
 import type { Context } from 'koa';
 import type { Core } from '@strapi/types';
-import { deny, getUserFromToken } from '../extensions/platform/http';
+import { getUserFromToken } from '../extensions/platform/http';
 
 /**
  * Allow only authenticated users; attach ctx.state.platform = { userId }.
@@ -11,7 +12,7 @@ export default async function (
 	{ strapi }: { strapi: Core.Strapi },
 ) {
 	const user = await getUserFromToken(ctx, strapi);
-	if (!user) return deny(ctx, 401, 'Unauthorized');
+	if (!user) throw new errors.UnauthorizedError('Unauthorized');
 	ctx.state.platform = { userId: user.id };
 	return true;
-};
+}

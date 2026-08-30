@@ -19,9 +19,6 @@
 		"description": {
 			"type": "text"
 		},
-		"coverImageUrl": {
-			"type": "string"
-		},
 		"instructors": {
 			"type": "relation",
 			"relation": "manyToMany",
@@ -38,6 +35,14 @@
 			"relation": "oneToMany",
 			"target": "api::quiz.quiz",
 			"mappedBy": "course"
+		},
+		"coverImage": {
+			"type": "media",
+			"multiple": false,
+			"required": false,
+			"allowedTypes": [
+				"images"
+			]
 		}
 	}
 }

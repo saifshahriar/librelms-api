@@ -77,7 +77,12 @@ export async function isEnrolled(
 export async function findCourseByRef(
 	strapi: Core.Strapi,
 	ref: string,
-	populate: string[] = ['instructors', 'lessons', 'quizzes'],
+	populate: string[] = [
+		'instructors',
+		'lessons',
+		'quizzes',
+		'coverImage',
+	],
 ) {
 	const numeric = Number.parseInt(ref, 10);
 	const where = Number.isNaN(numeric) ? { documentId: ref } : { id: numeric };
@@ -116,6 +121,50 @@ export async function findQuizByRef(
  * Full quiz row with nested components (questions+options) and course.
  * Used everywhere quiz content matters: view, grading, CRUD echo.
  */
+/**
+ * Full lesson row with its content component; the raw db layer does
+ * not return components, so lesson bodies/videos load empty without
+ * this document-service path.
+ */
+export async function findLessonFull(
+	strapi: Core.Strapi,
+	ref: string,
+): Promise<{
+	id: number;
+	documentId: string;
+	title: string;
+	order: number;
+	course?: { id: number };
+	content?: {
+		kind?: 'text' | 'video';
+		body?: string | null;
+		videoUrl?: string | null;
+		videoFile?: { url?: string } | null;
+	} | null;
+} | null> {
+	const numeric = Number.parseInt(ref, 10);
+	const filters = Number.isNaN(numeric)
+		? { documentId: ref }
+		: { id: numeric };
+	const doc = await strapi.documents('api::lesson.lesson').findFirst({
+		filters: filters as never,
+		populate: { content: { populate: { videoFile: true } }, course: true } as never,
+	});
+	return doc as unknown as {
+		id: number;
+		documentId: string;
+		title: string;
+		order: number;
+		course?: { id: number };
+		content?: {
+			kind?: 'text' | 'video';
+			body?: string | null;
+			videoUrl?: string | null;
+			videoFile?: { url?: string } | null;
+		} | null;
+	};
+}
+
 export async function findQuizFull(
 	strapi: Core.Strapi,
 	ref: string,
@@ -160,7 +209,7 @@ export async function findPostByRef(strapi: Core.Strapi, ref: string) {
 	const where = Number.isNaN(numeric) ? { documentId: ref } : { id: numeric };
 	return strapi.db.query('api::post.post').findOne({
 		where,
-		populate: ['author'],
+		populate: ['author', 'coverImage'],
 	});
 }
 
@@ -196,6 +245,7 @@ export function toCourseDTO(c: {
 	title: string;
 	description?: string | null;
 	coverImageUrl?: string | null;
+	coverImage?: { url?: string } | null;
 	instructors?: Array<{ id: number }>;
 	lessons?: Array<{ id: number; order?: number }>;
 	quizzes?: Array<{ id: number }>;
@@ -209,7 +259,7 @@ export function toCourseDTO(c: {
 		documentId: c.documentId,
 		title: c.title,
 		description: c.description ?? '',
-		coverImageUrl: c.coverImageUrl ?? '',
+		coverImageUrl: c.coverImage?.url ?? c.coverImageUrl ?? '',
 		instructorIds: (c.instructors ?? []).map((i) => i.id),
 		lessonIds: lessons.map((l) => l.id),
 		quizIds: (c.quizzes ?? []).map((q) => q.id),
@@ -232,7 +282,9 @@ export function toLessonDTO(l: {
 	course?: { id: number };
 	title: string;
 	order: number;
-	content?: LessonContentRow | null;
+	content?: (LessonContentRow & {
+		videoFile?: { url?: string } | null;
+	}) | null;
 }) {
 	const kind = l.content?.kind ?? 'text';
 	return {
@@ -243,7 +295,10 @@ export function toLessonDTO(l: {
 		order: l.order,
 		content:
 			kind === 'video'
-				? { kind: 'video' as const, videoUrl: l.content?.videoUrl ?? '' }
+				? {
+						kind: 'video' as const,
+						videoUrl: l.content?.videoFile?.url ?? l.content?.videoUrl ?? '',
+					}
 				: { kind: 'text' as const, body: l.content?.body ?? '' },
 	};
 }
@@ -254,6 +309,7 @@ export function toPostDTO(p: {
 	title: string;
 	body?: string | null;
 	coverImageUrl?: string | null;
+	coverImage?: { url?: string } | null;
 	author?: { id: number; fullName?: string | null; username?: string } | null;
 	publishedAt?: string | Date | null;
 	createdAt?: string | Date;
@@ -263,7 +319,7 @@ export function toPostDTO(p: {
 		documentId: p.documentId,
 		title: p.title,
 		body: p.body ?? '',
-		coverImageUrl: p.coverImageUrl ?? '',
+		coverImageUrl: p.coverImage?.url ?? p.coverImageUrl ?? '',
 		authorId: p.author?.id ?? 0,
 		authorName: p.author?.fullName ?? p.author?.username ?? 'Unknown',
 		publishedAt: p.publishedAt

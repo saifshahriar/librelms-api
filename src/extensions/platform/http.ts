@@ -32,9 +32,3 @@ export async function getUserFromToken(
 		return null;
 	}
 }
-
-export function deny(ctx: Context, status: 401 | 403 | 404, message: string) {
-	ctx.status = status;
-	ctx.body = { data: null, error: { status, message } };
-	return false;
-}
